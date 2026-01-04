@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEOWME | Premium Cat Explorer</title>
+
+<style>
+:root{
+  --card:#171a22;
+  --text:#ffffff;
+  --accent:#ff6b6b;
+}
+
+.light{
+  --card:#ffffff;
+  --text:#111;
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:Segoe UI,sans-serif;
+}
+
+body{
+  background:
+    linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,.75)),
+    url("https://images.unsplash.com/photo-1518791841217-8f162f1e1131");
+  background-size:cover;
+  background-attachment:fixed;
+  color:var(--text);
+}
+
+header{
+  text-align:center;
+  padding:2rem 1rem;
+}
+
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:1rem;
+  padding:1rem;
+}
+
+input,select,button{
+  padding:.7rem 1.1rem;
+  border-radius:10px;
+  border:none;
+  font-size:1rem;
+}
+
+button{
+  background:var(--accent);
+  color:#fff;
+  cursor:pointer;
+}
+
+.gallery{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:1.4rem;
+  padding:2rem;
+}
+
+.card{
+  background:var(--card);
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+  position:relative;
+}
+
+.card img{
+  width:100%;
+  height:260px;
+  object-fit:cover;
+}
+
+.info{
+  padding:1rem;
+}
+
+.fav{
+  position:absolute;
+  top:10px;
+  right:10px;
+  background:#000000aa;
+  border-radius:50%;
+  padding:6px 9px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>MEOWME 🐾</h1>
+  <p>Smart Cat Discovery Platform</p>
+</header>
+
+<section class="controls">
+  <select id="mode">
+    <option value="random">Random Cats</option>
+    <option value="breeds">Breed Showcase</option>
+    <option value="quality">High Quality Picks</option>
+  </select>
+  <input id="search" placeholder="Search breed…">
+  <button onclick="loadCats()">Explore</button>
+  <button onclick="toggleMode()">🌙 / ☀️</button>
+</section>
+
+<section class="gallery" id="gallery"></section>
+
+<script>
+const API_KEY = "live_zL0PlPaZypNGpyERKa6y7ETIuUaZPdJNtdvjlX932rXXVrgxYGQduveVoFXNIDIS";
+const BASE = "https://api.thecatapi.com/v1";
+
+const gallery = document.getElementById("gallery");
+const search = document.getElementById("search");
+const modeSelect = document.getElementById("mode");
+
+const favs = JSON.parse(localStorage.getItem("meowme_favs")) || [];
+
+function toggleMode(){
+  document.body.classList.toggle("light");
+}
+
+async function loadCats(){
+  gallery.innerHTML = "Loading…";
+  const mode = modeSelect.value;
+
+  let cats = [];
+
+  if(mode === "breeds"){
+    const res = await fetch(`${BASE}/breeds`, {
+      headers:{ "x-api-key": API_KEY }
+    });
+    cats = await res.json();
+    cats = cats.slice(0,12).map(b => ({
+      url: `https://cdn2.thecatapi.com/images/${b.reference_image_id}.jpg`,
+      breed: b
+    }));
+  } else {
+    let url = `${BASE}/images/search?limit=12`;
+    if(mode === "quality") url += `&size=full`;
+
+    const res = await fetch(url,{
+      headers:{ "x-api-key": API_KEY }
+    });
+    cats = await res.json();
+  }
+
+  if(search.value){
+    cats = cats.filter(c =>
+      c.breed?.name?.toLowerCase()
+      .includes(search.value.toLowerCase())
+    );
+  }
+
+  gallery.innerHTML = "";
+  cats.forEach(cat=>{
+    const breed = cat.breeds ? cat.breeds[0] : cat.breed;
+    const id = cat.id || breed?.id || Math.random();
+
+    gallery.innerHTML += `
+      <div class="card">
+        <div class="fav" onclick="toggleFav('${id}')">
+          ${favs.includes(id) ? "❤️" : "🤍"}
+        </div>
+        <img src="${cat.url}">
+        <div class="info">
+          <h3>${breed?.name || "Unknown Cat"}</h3>
+          <p>${breed?.temperament || "Pure feline energy"}</p>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function toggleFav(id){
+  const i = favs.indexOf(id);
+  i>-1 ? favs.splice(i,1) : favs.push(id);
+  localStorage.setItem("meowme_favs",JSON.stringify(favs));
+  loadCats();
+}
+
+loadCats();
+</script>
+
+</body>
+</html>
